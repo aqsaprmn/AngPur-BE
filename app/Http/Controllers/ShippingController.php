@@ -13,10 +13,16 @@ class ShippingController extends Controller
     /**
      * Display a listing of the resource.
      */
-    public function index()
+    public function index(Request $request)
     {
         try {
             $shippings = Shipping::orderBy("created_at", "desc")->get()->toArray();
+
+            if ($request->has('user_uuid')) {
+                $user_uuid = $request->input('user_uuid');
+                $shippings = Shipping::where("user_uuid",  $user_uuid)
+                    ->orderBy('created_at', 'desc')->get()->toArray();
+            }
 
             $shippings = Arr::map($shippings, function ($value) {
                 return [

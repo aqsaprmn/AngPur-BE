@@ -12,8 +12,10 @@ use Illuminate\Support\Facades\Route;
 Route::post("register", [AuthController::class, "register"]);
 Route::post("login", [AuthController::class, "login"]);
 
+Route::get("product", [ProductController::class, "index"]);
+
 Route::group([
-    'middleware' => 'api',
+    'middleware' => 'auth:api',
     // 'prefix' => 'auth'
 ], function ($router) {
     // AUTH
@@ -26,17 +28,19 @@ Route::group([
     Route::resource('user', UserController::class);
     // END USER
 
-    // USER
-    Route::resource('product', ProductController::class);
-    // END USER
+    // PRODUCT
+    Route::post("product", [ProductController::class, "store"]);
+    Route::patch("product/{uuid}", [ProductController::class, "update"]);
+    Route::delete("product/{uuid}", [ProductController::class, "destroy"]);
+    // END PRODUCT
 
-    // USER
+    // SHIPPING
     Route::resource('shipping', ShippingController::class);
-    // END USER
+    // END SHIPPING
 
-    // USER
+    // PAYMENT
     Route::resource('payment', PaymentController::class);
-    // END USER
+    // END PAYMENT
 
     // ORDER
     Route::get('order', [OrderController::class, "index"]);
