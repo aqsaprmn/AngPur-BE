@@ -16,7 +16,7 @@ class ShippingController extends Controller
     public function index()
     {
         try {
-            $shippings = Shipping::get()->toArray();
+            $shippings = Shipping::orderBy("created_at", "desc")->get()->toArray();
 
             $shippings = Arr::map($shippings, function ($value) {
                 return [

@@ -8,10 +8,6 @@ use App\Http\Controllers\ShippingController;
 use App\Http\Controllers\UserController;
 use Illuminate\Support\Facades\Route;
 
-// Route::get('/user', function (Request $request) {
-//     return $request->user();
-// })->middleware('auth:sanctum');
-
 // Open Routes
 Route::post("register", [AuthController::class, "register"]);
 Route::post("login", [AuthController::class, "login"]);
@@ -44,8 +40,11 @@ Route::group([
 
     // ORDER
     Route::get('order', [OrderController::class, "index"]);
+    Route::get('order/{uuid}', [OrderController::class, "show"]);
     Route::post('order', [OrderController::class, "store"]);
-    Route::patch('order/{uuid}', [OrderController::class, "update"]);
     Route::patch('order/cancel/{uuid}', [OrderController::class, "cancel"]);
+    Route::patch('order/confirm/{uuid}', [OrderController::class, "confirm"]);
+    Route::patch('order/delivery/{uuid}', [OrderController::class, "delivery"]);
+    Route::patch('order/received/{uuid}', [OrderController::class, "received"]);
     // END ORDER
 });

@@ -16,7 +16,7 @@ class PaymentController extends Controller
     public function index()
     {
         try {
-            $payments = Payment::get()->toArray();
+            $payments = Payment::orderBy("created_at", "desc")->get()->toArray();
 
             $payments = Arr::map($payments, function ($value) {
                 return [

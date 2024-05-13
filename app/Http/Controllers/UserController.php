@@ -16,7 +16,7 @@ class UserController extends Controller
     public function index()
     {
         try {
-            $users = User::where('role', '!=', "SUPER-ADMIN")->get()->toArray();
+            $users = User::where('role', '!=', "SUPER-ADMIN")->orderBy("created_at", "desc")->get()->toArray();
 
             $users = Arr::map($users, function ($value) {
                 return [

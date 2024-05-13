@@ -17,7 +17,7 @@ class ProductController extends Controller
     public function index()
     {
         try {
-            $products = Product::get()->toArray();
+            $products = Product::orderBy("created_at", "desc")->get()->toArray();
 
             $products = Arr::map($products, function ($value) {
                 return [

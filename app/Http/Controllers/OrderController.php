@@ -11,9 +11,6 @@ use App\Models\User;
 use Carbon\Carbon;
 use Faker\Provider\Uuid;
 use Illuminate\Http\Request;
-use Illuminate\Support\Arr;
-
-use function PHPSTORM_META\map;
 
 class OrderController extends Controller
 {
@@ -25,34 +22,27 @@ class OrderController extends Controller
         try {
             $wrapper = collect([]);
 
-            if ($request->has('uuid')) {
-                $user_uuid = $request->input('uuid');
-                $orders = Order::where("user_uuid",  $user_uuid)->get()->toArray();
+            if ($request->has('user_uuid')) {
+                $user_uuid = $request->input('user_uuid');
+                $orders = Order::where("user_uuid",  $user_uuid)
+                    ->orderBy('created_at', 'desc')->get()->toArray();
             } else {
-                $orders = Order::get()->toArray();
+                $orders = Order::orderBy('created_at', 'desc')->get()->toArray();
+            }
 
-                foreach ($orders as $key => $order) {
+            foreach ($orders as $key => $order) {
 
-                    $existParent = $wrapper->contains($order["parent_uuid"]);
+                $existParent = $wrapper->contains($order["parent_uuid"]);
 
-                    if (!$existParent) {
-                        $wrapper->push(["parent_uuid" => $order["parent_uuid"], "user_uuid" => $order["user_uuid"], "detail" => []]);
-                    }
-
-                    // $orIndex = 0;
-
-                    // foreach ($wrapper as $key => $value) {
-                    //     if ($value["parent_uuid"] == $order["parent_uuid"]) {
-                    //         $orIndex = $key;
-                    //     }
-                    // }
-
-                    $wrapper = $wrapper->map(function ($item, $i) use ($order) {
-                        array_push($item["detail"], $order);
-
-                        return $item;
-                    });
+                if (!$existParent) {
+                    $wrapper->push(["parent_uuid" => $order["parent_uuid"], "user_uuid" => $order["user_uuid"], "detail" => []]);
                 }
+
+                $wrapper = $wrapper->map(function ($item, $i) use ($order) {
+                    array_push($item["detail"], $order);
+
+                    return $item;
+                });
             }
 
             $wrapper = $wrapper->map(function ($item, $i) {
@@ -154,9 +144,60 @@ class OrderController extends Controller
     /**
      * Display the specified resource.
      */
-    public function show(Order $order)
+    public function show(string $uuid)
     {
-        //
+        try {
+            $wrapper = collect([]);
+
+            $orders = Order::where('parent_uuid', $uuid)->orderBy('created_at', 'desc')->get()->toArray();
+
+            foreach ($orders as $key => $order) {
+                $existParent = $wrapper->contains($order["parent_uuid"]);
+
+                if (!$existParent) {
+                    $wrapper->push(["parent_uuid" => $order["parent_uuid"], "user_uuid" => $order["user_uuid"], "detail" => []]);
+                }
+
+                $wrapper = $wrapper->map(function ($item, $i) use ($order) {
+                    array_push($item["detail"], $order);
+
+                    return $item;
+                });
+            }
+
+            $wrapper = $wrapper->map(function ($item, $i) {
+                $payment = Payment::select("paid")->where("parent_uuid", $item["parent_uuid"])->first();
+
+                $item["payment"] = $payment;
+
+                $user = User::select("name")->where("uuid", $item["user_uuid"])->first();
+
+                $item["user"] = $user;
+
+                $item["detail"] = collect($item["detail"])->map(function ($dtl, $idtl) {
+                    $product = Product::select("name")->where("uuid", $dtl["product_uuid"])->first();
+
+                    $dtl["product"] = $product;
+
+                    return $dtl;
+                });
+
+                return $item;
+            });
+
+            return response()->json([
+                "success" => true,
+                "message" => "Show detail order success",
+                "data" => $wrapper->first()
+            ], 200);
+        } catch (\Exception $e) {
+
+            return response()->json([
+                "success" => false,
+                "message" => "Something went wrong",
+                "data" => ["error" => $e->getMessage()]
+            ], 400);
+        }
     }
 
     /**
@@ -173,5 +214,188 @@ class OrderController extends Controller
     public function destroy(Order $order)
     {
         //
+    }
+
+    /**
+     * Cancel the specified resource from storage.
+     */
+    public function cancel(string $uuid)
+    {
+
+        $order = Order::where("parent_uuid", $uuid);
+
+        if (!$order) {
+            return response()->json([
+                "success" => true,
+                "message" => "Update order failed",
+                "data" => [
+                    "order" => "Order data not found",
+                ]
+            ], 400);
+        }
+
+        try {
+            $updData = ["status" => "C"];
+
+            $order->update($updData);
+
+            return response()->json([
+                "success" => true,
+                "message" => "Cancel order success",
+                "data" => [
+                    "order" => [
+                        "parent_uuid" => $uuid
+                    ]
+                ]
+            ], 200);
+        } catch (\Exception $e) {
+
+            return response()->json([
+                "success" => false,
+                "message" => "Something went wrong",
+                "data" => ["error" => $e->getMessage()]
+            ], 400);
+        }
+    }
+
+    /**
+     * Confirm the specified resource from storage.
+     */
+    public function confirm(string $uuid)
+    {
+        $order = Order::where("parent_uuid", $uuid);
+
+        if (!$order) {
+            return response()->json([
+                "success" => true,
+                "message" => "Update order failed",
+                "data" => [
+                    "order" => "Order data not found",
+                ]
+            ], 400);
+        }
+
+        try {
+            $updData = ["status" => "P"];
+
+            $order->update($updData);
+
+            $payment = Payment::where("parent_uuid", $uuid)->first();
+
+            $updPayment = ["paid" => "Y", "order_date" => Carbon::now()];
+
+            $payment->update($updPayment);
+
+            foreach (Order::where("parent_uuid", $uuid)->get()->toArray() as $key => $value) {
+                $product_uuid = $value["product_uuid"];
+
+                $product = Product::where("uuid", $product_uuid)->first();
+
+                $sold = $product["sold"] ? $product["sold"] + 1 : 1;
+
+                $updDataProd = ["sold" => $sold];
+
+                $product->update($updDataProd);
+            }
+
+            return response()->json([
+                "success" => true,
+                "message" => "Confirmation payment order success",
+                "data" => [
+                    "order" => [
+                        "parent_uuid" => $uuid
+                    ]
+                ]
+            ], 200);
+        } catch (\Exception $e) {
+
+            return response()->json([
+                "success" => false,
+                "message" => "Something went wrong",
+                "data" => ["error" => $e->getMessage()]
+            ], 400);
+        }
+    }
+
+    /**
+     * Delivery the specified resource from storage.
+     */
+    public function delivery(string $uuid)
+    {
+        $order = Order::where("parent_uuid", $uuid);
+
+        if (!$order) {
+            return response()->json([
+                "success" => true,
+                "message" => "Update order failed",
+                "data" => [
+                    "order" => "Order data not found",
+                ]
+            ], 400);
+        }
+
+        try {
+            $updData = ["status" => "D"];
+
+            $order->update($updData);
+
+            return response()->json([
+                "success" => true,
+                "message" => "Delivery order success",
+                "data" => [
+                    "order" => [
+                        "parent_uuid" => $uuid
+                    ]
+                ]
+            ], 200);
+        } catch (\Exception $e) {
+
+            return response()->json([
+                "success" => false,
+                "message" => "Something went wrong",
+                "data" => ["error" => $e->getMessage()]
+            ], 400);
+        }
+    }
+
+    /**
+     * Received the specified resource from storage.
+     */
+    public function received(string $uuid)
+    {
+        $order = Order::where("parent_uuid", $uuid);
+
+        if (!$order) {
+            return response()->json([
+                "success" => true,
+                "message" => "Update order failed",
+                "data" => [
+                    "order" => "Order data not found",
+                ]
+            ], 400);
+        }
+
+        try {
+            $updData = ["status" => "Y"];
+
+            $order->update($updData);
+
+            return response()->json([
+                "success" => true,
+                "message" => "Received order success",
+                "data" => [
+                    "order" => [
+                        "parent_uuid" => $uuid
+                    ]
+                ]
+            ], 200);
+        } catch (\Exception $e) {
+
+            return response()->json([
+                "success" => false,
+                "message" => "Something went wrong",
+                "data" => ["error" => $e->getMessage()]
+            ], 400);
+        }
     }
 }
