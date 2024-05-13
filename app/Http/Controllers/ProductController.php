@@ -59,7 +59,7 @@ class ProductController extends Controller
             ]
         ]);
 
-        $path = "public/uploads/product/";
+        $path = "uploads/product/";
 
         $filename = Carbon::now()->toDateString() . "_" . strtotime(Carbon::now()->toTimeString()) .  "." .  $request->file("image")->getClientOriginalExtension();
 
