@@ -24,6 +24,7 @@ return new class extends Migration
             $table->string("city");
             $table->string("province");
             $table->string("postalCode");
+            $table->char("active", 1)->default("Y");
             $table->char("status", 1)->default("N");
             $table->softDeletes();
             $table->timestamps();

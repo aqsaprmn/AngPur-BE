@@ -22,13 +22,19 @@ class OrderController extends Controller
         try {
             $wrapper = collect([]);
 
-            if ($request->has('user_uuid')) {
+            $orders = Order::orderBy('created_at', 'desc');
+
+            if ($request->has('user_uuid') && $request->input('user_uuid')) {
                 $user_uuid = $request->input('user_uuid');
-                $orders = Order::where("user_uuid",  $user_uuid)
-                    ->orderBy('created_at', 'desc')->get()->toArray();
-            } else {
-                $orders = Order::orderBy('created_at', 'desc')->get()->toArray();
+                $orders = $orders->where("user_uuid",  $user_uuid);
             }
+
+            if ($request->has('status') && $request->input('status')) {
+                $status = $request->input('status');
+                $orders = $orders->where("status",  $status);
+            }
+
+            $orders = $orders->get()->toArray();
 
             foreach ($orders as $key => $order) {
 
@@ -46,7 +52,7 @@ class OrderController extends Controller
             }
 
             $wrapper = $wrapper->map(function ($item, $i) {
-                $payment = Payment::select("paid")->where("parent_uuid", $item["parent_uuid"])->first();
+                $payment = Payment::select("paid", "total")->where("parent_uuid", $item["parent_uuid"])->first();
 
                 $item["payment"] = $payment;
 
@@ -55,7 +61,7 @@ class OrderController extends Controller
                 $item["user"] = $user;
 
                 $item["detail"] = collect($item["detail"])->map(function ($dtl, $idtl) {
-                    $product = Product::select("name")->where("uuid", $dtl["product_uuid"])->first();
+                    $product = Product::where("uuid", $dtl["product_uuid"])->first();
 
                     $dtl["product"] = $product;
 
@@ -136,7 +142,7 @@ class OrderController extends Controller
             return response()->json([
                 "success" => false,
                 "message" => "Something went wrong",
-                "data" => ["error" => $e]
+                "data" => ["error" => $e->getMessage()]
             ], 400);
         }
     }
@@ -291,9 +297,11 @@ class OrderController extends Controller
 
                 $product = Product::where("uuid", $product_uuid)->first();
 
-                $sold = $product["sold"] ? $product["sold"] + 1 : 1;
+                $sold = $product["sold"] ? $product["sold"] + $value["total"] : $value["total"];
 
-                $updDataProd = ["sold" => $sold];
+                $stock = $product["stock"] - $value["total"];
+
+                $updDataProd = ["sold" => $sold, "stock" => $stock];
 
                 $product->update($updDataProd);
             }

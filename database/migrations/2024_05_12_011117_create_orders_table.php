@@ -17,7 +17,7 @@ return new class extends Migration
             $table->string("user_uuid");
             $table->string("parent_uuid");
             $table->string("product_uuid");
-            $table->text("note");
+            $table->text("note")->nullable();
             $table->integer("total");
             $table->decimal("price", 14, 2);
             $table->dateTime("order_date");

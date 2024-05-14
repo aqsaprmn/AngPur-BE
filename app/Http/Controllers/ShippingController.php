@@ -161,6 +161,7 @@ class ShippingController extends Controller
             "city" => "required|string",
             "province" => "required|string",
             "postalCode" => "string",
+            "active" => "required|string",
         ]);
 
         try {
@@ -174,6 +175,7 @@ class ShippingController extends Controller
                 "city" => $request->get("city"),
                 "province" => $request->get("province"),
                 "postalCode" => $request->get("postalCode"),
+                "active" => $request->get("active"),
             ];
 
             $shipping->update($data);
