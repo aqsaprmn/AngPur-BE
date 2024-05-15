@@ -37,22 +37,25 @@ class OrderController extends Controller
             $orders = $orders->get()->toArray();
 
             foreach ($orders as $key => $order) {
-
-                $existParent = $wrapper->contains($order["parent_uuid"]);
+                $existParent = $wrapper->contains(function ($value, $key) use ($order) {
+                    return $value["parent_uuid"] === $order["parent_uuid"];
+                });
 
                 if (!$existParent) {
                     $wrapper->push(["parent_uuid" => $order["parent_uuid"], "user_uuid" => $order["user_uuid"], "detail" => []]);
                 }
 
                 $wrapper = $wrapper->map(function ($item, $i) use ($order) {
-                    array_push($item["detail"], $order);
+                    if ($item["parent_uuid"] === $order["parent_uuid"]) {
+                        array_push($item["detail"], $order);
+                    }
 
                     return $item;
                 });
             }
 
             $wrapper = $wrapper->map(function ($item, $i) {
-                $payment = Payment::select("paid", "total")->where("parent_uuid", $item["parent_uuid"])->first();
+                $payment = Payment::select("paid", "total", "payment_date")->where("parent_uuid", $item["parent_uuid"])->first();
 
                 $item["payment"] = $payment;
 
@@ -158,21 +161,25 @@ class OrderController extends Controller
             $orders = Order::where('parent_uuid', $uuid)->orderBy('created_at', 'desc')->get()->toArray();
 
             foreach ($orders as $key => $order) {
-                $existParent = $wrapper->contains($order["parent_uuid"]);
+                $existParent = $wrapper->contains(function ($value, $key) use ($order) {
+                    return $value["parent_uuid"] === $order["parent_uuid"];
+                });
 
                 if (!$existParent) {
                     $wrapper->push(["parent_uuid" => $order["parent_uuid"], "user_uuid" => $order["user_uuid"], "detail" => []]);
                 }
 
                 $wrapper = $wrapper->map(function ($item, $i) use ($order) {
-                    array_push($item["detail"], $order);
+                    if ($item["parent_uuid"] === $order["parent_uuid"]) {
+                        array_push($item["detail"], $order);
+                    }
 
                     return $item;
                 });
             }
 
             $wrapper = $wrapper->map(function ($item, $i) {
-                $payment = Payment::select("paid")->where("parent_uuid", $item["parent_uuid"])->first();
+                $payment = Payment::select("paid", "total", "payment_date")->where("parent_uuid", $item["parent_uuid"])->first();
 
                 $item["payment"] = $payment;
 
@@ -181,7 +188,7 @@ class OrderController extends Controller
                 $item["user"] = $user;
 
                 $item["detail"] = collect($item["detail"])->map(function ($dtl, $idtl) {
-                    $product = Product::select("name")->where("uuid", $dtl["product_uuid"])->first();
+                    $product = Product::where("uuid", $dtl["product_uuid"])->first();
 
                     $dtl["product"] = $product;
 
@@ -288,7 +295,7 @@ class OrderController extends Controller
 
             $payment = Payment::where("parent_uuid", $uuid)->first();
 
-            $updPayment = ["paid" => "Y", "order_date" => Carbon::now()];
+            $updPayment = ["paid" => "Y", "payment_date" => Carbon::now()];
 
             $payment->update($updPayment);
 

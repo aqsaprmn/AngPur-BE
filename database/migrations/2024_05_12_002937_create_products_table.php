@@ -20,6 +20,7 @@ return new class extends Migration
             $table->decimal("price", 14, 2);
             $table->string("image");
             $table->string("filename");
+            $table->char("active", "1")->default("A");
             $table->integer("sold")->nullable();
             $table->softDeletes();
             $table->timestamps();

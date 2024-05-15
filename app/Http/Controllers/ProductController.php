@@ -152,21 +152,27 @@ class ProductController extends Controller
             ], 400);
         }
 
-        $request->validate([
+        $validateData = [
             "name" => "required|string",
             "description" => "required|string",
             "stock" => "required|numeric",
             "price" => "required|numeric",
-            "image" => [
+            "image" => []
+        ];
+
+        if ($request->file("image")) {
+            $validateData["image"] = [
                 "required",
                 "image",
                 "file",
                 "mimes:jpg,png,jpeg",
                 "max:5000",
-            ]
-        ]);
+            ];
+        }
 
-        $path = "public/uploads/product/";
+        $request->validate($validateData);
+
+        $path = "uploads/product/";
 
         $filename = Carbon::now()->toDateString() . "_" . strtotime(Carbon::now()->toTimeString()) .  "." .  $request->file("image")->getClientOriginalExtension();
 
@@ -178,15 +184,19 @@ class ProductController extends Controller
                 "price" => $request->get("price"),
             ]);
 
-            if (file_exists("storage/uploads/product/" . $product->filename)) {
-                unlink("storage/uploads/product/" . $product->filename);
-            }
 
-            if ($request->file("image")->storeAs($path, $filename)) {
-                $data = $data->merge([
-                    "image" => url("/") . "/storage/uploads/product/" . $filename,
-                    "filename" => $filename
-                ]);
+
+            if ($request->file("image") && $request->file("image") !== "") {
+                if (file_exists("storage/uploads/product/" . $product->filename)) {
+                    unlink("storage/uploads/product/" . $product->filename);
+                }
+
+                if ($request->file("image")->storeAs($path, $filename)) {
+                    $data = $data->merge([
+                        "image" => url("/") . "/storage/uploads/product/" . $filename,
+                        "filename" => $filename
+                    ]);
+                }
             }
 
             $product->update($data->all());
